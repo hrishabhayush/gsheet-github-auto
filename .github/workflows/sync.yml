@@ -29,7 +29,7 @@ jobs:
           echo "${{ secrets.GOOGLE_SHEET_CREDS }}" | base64 -d > credentials.json
           echo "Credentials file created successfully"
 
-      - name: Run sync script
+      - name: Run internship automation
         env:
           GOOGLE_SPREADSHEET_LINK: ${{ secrets.GOOGLE_SPREADSHEET_LINK }}
-        run: python sync.py
+        run: python main.py
