@@ -1,4 +1,6 @@
 gspread
-dotenv
+python-dotenv
 pandas
 requests
+beautifulsoup4
+google-auth

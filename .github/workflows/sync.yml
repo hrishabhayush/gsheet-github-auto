@@ -4,6 +4,8 @@ on:
   push:
     branches:              # Triggers sync everytime the upstream repo is updated
       - main
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
 
 jobs:
   sync-sheet:
