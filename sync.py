@@ -2,6 +2,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 from dotenv import load_dotenv
 import os
+import pandas as pd
 
 load_dotenv()
 
@@ -11,24 +12,21 @@ scope = [
     "https://www.googleapis.com/auth/drive"
 ]
 
-def open_file(creds, ):
-    try:
-        creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
-        client = gspread.authorize(creds)
-        
+'''
+Returns the first worksheet and the dataframe with all the records
+'''
+def open_file(creds, spreadsheet_url):
+    try:    
+        client = gspread.authorize(creds)    
         # Store the spreadsheet object
-        spreadsheet_url = os.getenv('GOOGLE_SPREADSHEET_LINK')
-        if not spreadsheet_url:
-            raise ValueError("GOOGLE_SPREADSHEET_LINK environment variable is not set")
         
         spreadsheet = client.open_by_url(spreadsheet_url)
-        print(f"Successfully opened spreadsheet: {spreadsheet.title}")
         
-        # You can now work with the spreadsheet
-        # Example: Get the first worksheet
+        # Get the first worksheet
         worksheet = spreadsheet.sheet1
-        print(f"Working with worksheet: {worksheet.title}")
-        
+        dataframe = pd.DataFrame(worksheet.get_all_records())
+        return worksheet, dataframe
+ 
     except FileNotFoundError:
         print("Error: credentials.json file not found")
     except ValueError as e:
@@ -40,5 +38,26 @@ def open_file(creds, ):
     except Exception as e:
         print(f"Unexpected error: {e}")
 
-def write_file():
-    print('Is this being written to the google sheets')
+'''
+This function will have the automation script
+'''
+def write_file(creds, spreadsheet_url):
+    ws, _ = open_file(creds=creds, spreadsheet_url=spreadsheet_url)
+    ws.update_acell('B1', 'Bingo!')
+    return val
+
+    
+def main():
+    print("STARTING GOOGLE SHEETS AUTOMATION")
+    creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
+
+    spreadsheet_url = os.getenv('GOOGLE_SPREADSHEET_LINK')
+    if not spreadsheet_url:
+        raise ValueError("GOOGLE_SPREADSHEET_LINK environment variable is not set")
+    ws = open_file(creds, spreadsheet_url)
+    value = write_file(creds, spreadsheet_url)
+    values_list = ws.row_values(1)
+    print(values_list)
+    print(value)
+
+main()
