@@ -30,4 +30,6 @@ jobs:
           echo "Credentials file created successfully"
 
       - name: Run sync script
+        env:
+          GOOGLE_SPREADSHEET_LINK: ${{ secrets.GOOGLE_SPREADSHEET_LINK }}
         run: python sync.py
