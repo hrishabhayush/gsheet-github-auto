@@ -6,6 +6,7 @@ import pandas as pd
 import requests
 import hashlib
 import re
+from io import StringIO
 
 load_dotenv()
 
@@ -72,7 +73,20 @@ def extract_information(url):
         "| ------- | ---- | -------- | ---------------- | ----------- |\n"
         + table_body
         )
-        print(full_table)
+        # print(full_table)
+
+        buffer = StringIO(full_table)
+
+        df = pd.read_csv(buffer, sep="|", engine="python", skipinitialspace=True)
+
+        df = df.dropna(axis=1, how="all")
+
+        df = df.iloc[1:]
+
+        df.columns = [c.strip() for c in df.columns]
+        df = df.map(lambda x: x.strip() if isinstance(x, str) else x)
+
+        df.to_csv('data/output.csv', sep=",")
     else:
         raise Exception("Internship table not found.")
 
