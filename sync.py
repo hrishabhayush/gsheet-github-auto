@@ -7,6 +7,7 @@ import requests
 import hashlib
 import re
 from io import StringIO
+from bs4 import BeautifulSoup
 
 load_dotenv()
 
@@ -81,14 +82,49 @@ def extract_information(url):
 
         df = df.dropna(axis=1, how="all")
 
-        df = df.iloc[1:]
+        df = df.iloc[1:].reset_index(drop=True)
 
         df.columns = [c.strip() for c in df.columns]
         df = df.map(lambda x: x.strip() if isinstance(x, str) else x)
+        
+        df['Recruiters'] = ""
+        df['Notes'] = ""
+        print(df.columns)
 
+        handle_rows(df)
+        df["Location"] = df["Location"].apply(clean_html_tags)
+        df["Application/Link"] = df["Application/Link"].apply(extract_link_from_html)
+        df["unique_key"] = df.apply(generate_key, axis=1)
+
+        new_keys = set(df["unique_key"])
         df.to_csv('data/output.csv', sep=",")
     else:
         raise Exception("Internship table not found.")
+
+def handle_rows(df):
+    for i in range(len(df)):
+        if df.loc[i, "Company"].strip() == "↳":
+            df.loc[i, "Company"] = df.loc[i-1, "Company"]
+
+# Step 6.1: Define function to generate unique key
+def generate_key(row):
+    return row["Company"].strip() + "|" + row["Role"].strip() + \
+    "|" + row["Location"].strip() + "|" + row["Application/Link"] + \
+        "|" + row["Date Posted"] + "|" + row["Recruiters"] + "|" + row["Notes"]
+
+def clean_html_tags(text):
+    '''
+    Clean HTML tags from the location
+    '''
+    if pd.isna(text):
+        return text
+    return BeautifulSoup(text, "html.parser").get_text(separator=", ")
+
+def extract_link_from_html(html):
+    if pd.isna(html):
+        return html
+    match = re.search(r'href="([^"]+)"', html)
+    return match.group(1) if match else html
 
 
 def detect_changes(url):
@@ -111,7 +147,21 @@ def detect_changes(url):
     # Save the new hash 
     with open(hash_path, "w") as f:
         f.write(readme_hash)
-    
+
+def normalize(s):
+    return re.sub(r'\s+', ' ', s.strip().lower()) if isinstance(s, str) else ''
+
+def generate_key(row):
+    return "|".join([
+        normalize(row["Company"]),
+        normalize(row["Role"]),
+        normalize(row["Location"]),
+        normalize(row["Application/Link"]),
+        normalize(row["Date Posted"]),
+        normalize(row["Recruiters"]),
+        normalize(row["Notes"]),
+    ])
+
 def main():
     '''
     The main function
