@@ -1,5 +1,6 @@
 import gspread
 import pandas as pd
+import time
 from github_data import normalize_text, generate_unique_key
 
 def connect_to_sheet(credentials, spreadsheet_url):
@@ -41,6 +42,12 @@ def smart_sync_to_sheets(worksheet, new_df, existing_df):
         
         # Prepare data for upload (excluding unique_key column)
         upload_data = [new_df_for_sheets.columns.tolist()] + new_df_for_sheets.values.tolist()
+        total_rows_needed = len(upload_data)
+        
+        # Ensure sheet has enough rows
+        if total_rows_needed > worksheet.row_count:
+            print(f"Expanding sheet to {total_rows_needed} rows...")
+            worksheet.resize(rows=total_rows_needed)
         
         # Clear sheet and upload
         worksheet.clear()
@@ -101,21 +108,54 @@ def smart_sync_to_sheets(worksheet, new_df, existing_df):
             new_row_for_sheets = new_row[sheets_columns]
             new_internships.append(new_row_for_sheets)
     
-    # Apply updates
+    # Add new internships to the top first (after header)
+    if new_internships:
+        print(f"Adding {len(new_internships)} new internships to the top...")
+        
+        # Check if we need to expand the sheet
+        total_rows_needed = len(existing_df) + len(new_internships) + 1  # +1 for header
+        current_row_count = worksheet.row_count
+        if total_rows_needed > current_row_count:
+            print(f"Expanding sheet from {current_row_count} to {total_rows_needed} rows...")
+            worksheet.resize(rows=total_rows_needed)
+        
+        # Insert rows at the top to make space for new internships
+        if len(new_internships) > 0:
+            worksheet.insert_rows([[""] * len(sheets_columns)] * len(new_internships), 2)
+            time.sleep(1)  # Small delay to avoid rate limits
+        
+        # Prepare batch data for new internships
+        batch_data = []
+        for i, new_internship in enumerate(new_internships):
+            row_data = [new_internship[col] for col in sheets_columns]
+            batch_data.append(row_data)
+        
+        # Batch update new internships (starting from row 2)
+        if batch_data:
+            range_name = f"A2:{chr(65+len(sheets_columns)-1)}{1 + len(batch_data)}"
+            worksheet.update(range_name, batch_data)
+            time.sleep(1)  # Small delay to avoid rate limits
+    
+    # Apply updates to existing internships (adjusting for inserted rows)
     if updates_needed:
         print(f"Updating {len(updates_needed)} existing internships...")
-        for update in updates_needed:
-            row_data = [update['data'][col] for col in sheets_columns]
-            worksheet.update(f"A{update['row']}:{chr(65+len(sheets_columns)-1)}{update['row']}", [row_data])
-    
-    # Add new internships
-    if new_internships:
-        print(f"Adding {len(new_internships)} new internships...")
-        next_row = len(existing_df) + 2  # +2 for header and 1-indexing
         
-        for new_internship in new_internships:
-            row_data = [new_internship[col] for col in sheets_columns]
-            worksheet.update(f"A{next_row}:{chr(65+len(sheets_columns)-1)}{next_row}", [row_data])
-            next_row += 1
+        # Prepare batch updates
+        batch_updates = []
+        row_offset = len(new_internships)  # Account for newly inserted rows
+        
+        for update in updates_needed:
+            adjusted_row = update['row'] + row_offset
+            row_data = [update['data'][col] for col in sheets_columns]
+            range_name = f"A{adjusted_row}:{chr(65+len(sheets_columns)-1)}{adjusted_row}"
+            batch_updates.append({
+                'range': range_name,
+                'values': [row_data]
+            })
+        
+        # Execute batch updates
+        if batch_updates:
+            worksheet.batch_update(batch_updates)
+            time.sleep(1)  # Small delay to avoid rate limits
     
     print(f"Sync complete! Added {len(new_internships)} new, updated {len(updates_needed)} existing internships.") 

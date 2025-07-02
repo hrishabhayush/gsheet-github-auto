@@ -124,6 +124,9 @@ def process_internship_data(url):
     df["Application/Link"] = df["Application/Link"].apply(extract_link_from_html)
     df["unique_key"] = df.apply(generate_unique_key, axis=1)
     
+    # Create data directory if it doesn't exist
+    os.makedirs('data', exist_ok=True)
+    
     # Save backup to local CSV
     df.to_csv('data/output.csv', sep=",", index=False)
     
