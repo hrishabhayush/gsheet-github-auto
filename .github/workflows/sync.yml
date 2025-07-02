@@ -15,6 +15,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Cache hash file
+        uses: actions/cache@v3
+        with:
+          path: last_hash.txt
+          key: internship-hash-${{ github.run_id }}
+          restore-keys: |
+            internship-hash-
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -33,3 +41,10 @@ jobs:
         env:
           GOOGLE_SPREADSHEET_LINK: ${{ secrets.GOOGLE_SPREADSHEET_LINK }}
         run: python main.py
+
+      - name: Save hash file to cache
+        uses: actions/cache/save@v3
+        if: always()
+        with:
+          path: last_hash.txt
+          key: internship-hash-${{ github.run_id }}
