@@ -19,7 +19,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: last_hash.txt
-          key: internship-hash-${{ github.run_id }}
+          key: internship-hash-${{ github.ref }}
           restore-keys: |
             internship-hash-
 
@@ -47,4 +47,4 @@ jobs:
         if: always()
         with:
           path: last_hash.txt
-          key: internship-hash-${{ github.run_id }}
+          key: internship-hash-${{ github.ref }}
